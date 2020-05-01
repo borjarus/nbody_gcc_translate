@@ -78,6 +78,62 @@ static mut solar_Bodies: [body; BODIES_COUNT] = [
     }
 ];
 
+unsafe fn offset_Momentum(bodies: *mut body){
+    for i in 0..BODIES_COUNT {
+        for m in 0..3 {
+            (*bodies.add(i)).velocity[m] -=
+                (*bodies.add(i)).velocity[m] 
+                * (*bodies.add(i)).mass / SOLAR_MASS; 
+        }
+    }
+}
+
+unsafe fn output_Energy(bodies: *mut body){
+    let mut energy = 0.;
+    for i in 0..BODIES_COUNT {
+        // add kinectic energy to each body
+        energy += 0.5 * (*bodies.add(i)).mass
+            * (
+                (*bodies.add(i)).velocity[0] * (*bodies.add(i)).velocity[0] 
+                + (*bodies.add(i)).velocity[1] * (*bodies.add(i)).velocity[1] 
+                + (*bodies.add(i)).velocity[2] * (*bodies.add(i)).velocity[2] 
+
+            );
+        
+        // Add the potential energy between this body and every other body
+        for j in i+1..BODIES_COUNT {
+            let mut position_Delta = [mem::MaybeUninit::<f64>::uninit(); 3];
+            for m in 0..3 {
+                position_Delta[m].as_mut_ptr().write(
+                    (*bodies.add(i)).position[m] - (*bodies.add(j)).position[m]
+                ); 
+            }
+            let position_Delta: [f64; 3] = mem::transmute(position_Delta);
+
+            energy -= (*bodies.add(i)).mass * (*bodies.add(j)).mass
+                / f64::sqrt(
+                    position_Delta[0] * position_Delta[0]
+                    + position_Delta[1] * position_Delta[1]
+                    + position_Delta[2] * position_Delta[2]
+                );
+        } 
+
+    }
+    println!("{:.9}", energy);
+}
+
+unsafe fn advance (bodies: *mut body){
+   const INTERACTIONS_COUNT: usize = BODIES_COUNT * (BODIES_COUNT - 1) / 2;
+   const ROUNDED_INTERACTIONS_COUNT: usize = INTERACTIONS_COUNT + INTERACTIONS_COUNT % 2;
+   
+   #[repr(align(16))]
+   #[derive(Copy, Clone)]
+   struct Align16([f64; ROUNDED_INTERACTIONS_COUNT]);
+
+    static mut position_Deltas: [Align16; 3] = [Align16([0.; ROUNDED_INTERACTIONS_COUNT]); 3];
+    static mut magnitudes: Align16 = Align16([0.; ROUNDED_INTERACTIONS_COUNT]);
+}
+
 fn main() {
     println!("Hello, world!");
 }
