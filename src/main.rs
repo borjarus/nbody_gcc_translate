@@ -5,7 +5,7 @@
 #![repr(C)]
 
 use std::mem;
-use std::arch::x86_64;
+use std::arch::x86_64::*;
 use std::f64::consts::PI;
     
 struct body{
@@ -132,6 +132,27 @@ unsafe fn advance (bodies: *mut body){
 
     static mut position_Deltas: [Align16; 3] = [Align16([0.; ROUNDED_INTERACTIONS_COUNT]); 3];
     static mut magnitudes: Align16 = Align16([0.; ROUNDED_INTERACTIONS_COUNT]);
+
+    let mut k = 0;
+    for i in 0..BODIES_COUNT-1 {
+        for j in i+1..BODIES_COUNT-1 {
+            for m in 0..3 {
+                position_Deltas[m].0[k] = (*bodies.add(i)).position[m] - (*bodies.add(j)).position[m];
+            }
+            k += 1;
+        }
+    }
+
+    for i in 0..ROUNDED_INTERACTIONS_COUNT / 2 {
+        let mut position_Delta = [mem::MaybeUninit::<__m128d>::uninit(); 3];
+        for m in 0..3 {
+            position_Delta[m].as_mut_ptr().write(
+                *(&position_Deltas[m].0 as *const f64 as *const __m128d).add(i)
+            );
+        }
+        let position_Delta: [__m128d; 3] = mem::transmute(position_Delta);
+    }
+
 }
 
 fn main() {
