@@ -150,8 +150,70 @@ unsafe fn advance (bodies: *mut body){
                 *(&position_Deltas[m].0 as *const f64 as *const __m128d).add(i)
             );
         }
+
         let position_Delta: [__m128d; 3] = mem::transmute(position_Delta);
+    
+        let distance_Squared: __m128d = _mm_add_pd(
+            _mm_add_pd(
+                _mm_mul_pd(position_Delta[0], position_Delta[0]),
+                _mm_mul_pd(position_Delta[1], position_Delta[1]),
+            ),
+            _mm_mul_pd(position_Delta[2], position_Delta[2])
+        );
+
+        let mut distance_Reciprocal: __m128d = _mm_cvtps_pd(_mm_rsqrt_ps(_mm_cvtpd_ps(distance_Squared)));
+
+        for _ in 0..2 {
+            distance_Reciprocal = _mm_sub_pd(
+                _mm_mul_pd(distance_Reciprocal, _mm_set1_pd(1.5)),
+                _mm_mul_pd(
+                    _mm_mul_pd(
+                        _mm_mul_pd(
+                            _mm_set1_pd(0.5),
+                            distance_Squared
+                        ),
+                        distance_Reciprocal,
+                    ),
+                    _mm_mul_pd(
+                        distance_Reciprocal,
+                        distance_Reciprocal
+                    ),
+                ));
+        }
+
+        (magnitudes.0.as_mut_ptr() as *mut __m128d).add(i)
+            .write(_mm_mul_pd(
+                _mm_div_pd(
+                    _mm_set1_pd(0.01),
+                    distance_Squared,
+                ),
+                distance_Reciprocal,
+            ))
+
     }
+
+    {
+        let mut k = 0;
+        for i in 0..BODIES_COUNT-1 {
+            for j in i+1..BODIES_COUNT -1 {
+                let i_mass_magnitude = (*bodies.add(i)).mass * magnitudes.0[k];
+                let j_mass_magnitude = (*bodies.add(j)).mass * magnitudes.0[k];
+
+                for m in 0..3 {
+                    (*bodies.add(i)).velocity[m] -= position_Deltas[m].0[k] * j_mass_magnitude;
+                    (*bodies.add(j)).velocity[m] += position_Deltas[m].0[k] * i_mass_magnitude;
+                }
+                k += 1;
+            }
+        }
+    }
+
+for i in 0..BODIES_COUNT {
+for m in 0..3 {
+    (*bodies.add(i)).position[m] += 0.01 * (*bodies.add(i)).velocity[m];
+}
+}
+
 
 }
 
