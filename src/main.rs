@@ -2,12 +2,13 @@
     non_camel_case_types,
     non_snake_case)]
     
-#![repr(C)]
+
 
 use std::mem;
 use std::arch::x86_64::*;
 use std::f64::consts::PI;
-    
+
+#[repr(C)]
 struct body{
     position: [f64; 3],
     velocity: [f64; 3],
@@ -218,5 +219,14 @@ for m in 0..3 {
 }
 
 fn main() {
-    println!("Hello, world!");
+    unsafe {
+        offset_Momentum(solar_Bodies.as_mut_ptr());
+        output_Energy(solar_Bodies.as_mut_ptr());
+
+        let c = std::env::args().nth(1).unwrap().parse().unwrap();
+        for _ in 0..c {
+            advance(solar_Bodies.as_mut_ptr())
+        }
+        output_Energy(solar_Bodies.as_mut_ptr());
+    }
 }
