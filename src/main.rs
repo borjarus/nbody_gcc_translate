@@ -87,29 +87,27 @@ fn offset_Momentum(bodies: &mut [body; BODIES_COUNT]){
     }
 }
 
-unsafe fn output_Energy(bodies: *mut body){
+unsafe fn output_Energy(bodies: &mut [body; BODIES_COUNT]){
     let mut energy = 0.;
     for i in 0..BODIES_COUNT {
         // add kinectic energy to each body
-        energy += 0.5 * (*bodies.add(i)).mass
+        energy += 0.5 * bodies[i].mass
             * (
-                (*bodies.add(i)).velocity[0] * (*bodies.add(i)).velocity[0] 
-                + (*bodies.add(i)).velocity[1] * (*bodies.add(i)).velocity[1] 
-                + (*bodies.add(i)).velocity[2] * (*bodies.add(i)).velocity[2] 
+                bodies[i].velocity[0] * bodies[i].velocity[0] 
+                + bodies[i].velocity[1] * bodies[i].velocity[1] 
+                + bodies[i].velocity[2] * bodies[i].velocity[2] 
 
             );
         
         // Add the potential energy between this body and every other body
         for j in i+1..BODIES_COUNT {
-            let mut position_Delta = [mem::MaybeUninit::<f64>::uninit(); 3];
+            let mut position_Delta = [0.; 3];
             for m in 0..3 {
-                position_Delta[m].as_mut_ptr().write(
-                    (*bodies.add(i)).position[m] - (*bodies.add(j)).position[m]
-                ); 
-            }
-            let position_Delta: [f64; 3] = mem::transmute(position_Delta);
+                position_Delta[m] = bodies[i].position[m] - bodies[j].position[m];
 
-            energy -= (*bodies.add(i)).mass * (*bodies.add(j)).mass
+            }
+
+            energy -= bodies[i].mass * bodies[j].mass
                 / f64::sqrt(
                     position_Delta[0] * position_Delta[0]
                     + position_Delta[1] * position_Delta[1]
@@ -219,12 +217,12 @@ for m in 0..3 {
 fn main() {
     unsafe {
         offset_Momentum(&mut solar_Bodies);
-        output_Energy(solar_Bodies.as_mut_ptr());
+        output_Energy(&mut solar_Bodies);
 
         let c = std::env::args().nth(1).unwrap().parse().unwrap();
         for _ in 0..c {
             advance(solar_Bodies.as_mut_ptr())
         }
-        output_Energy(solar_Bodies.as_mut_ptr());
+        output_Energy(&mut solar_Bodies);
     }
 }
