@@ -79,12 +79,10 @@ static mut solar_Bodies: [body; BODIES_COUNT] = [
     }
 ];
 
-unsafe fn offset_Momentum(bodies: *mut body){
+fn offset_Momentum(bodies: &mut [body; BODIES_COUNT]){
     for i in 0..BODIES_COUNT {
         for m in 0..3 {
-            (*bodies.add(i)).velocity[m] -=
-                (*bodies.add(i)).velocity[m] 
-                * (*bodies.add(i)).mass / SOLAR_MASS; 
+            bodies[0].velocity[m] -= bodies[0].velocity[m]  * bodies[0].mass / SOLAR_MASS; 
         }
     }
 }
@@ -220,7 +218,7 @@ for m in 0..3 {
 
 fn main() {
     unsafe {
-        offset_Momentum(solar_Bodies.as_mut_ptr());
+        offset_Momentum(&mut solar_Bodies);
         output_Energy(solar_Bodies.as_mut_ptr());
 
         let c = std::env::args().nth(1).unwrap().parse().unwrap();
