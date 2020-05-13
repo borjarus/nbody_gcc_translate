@@ -13,7 +13,32 @@ struct body{
     position: [f64; 3],
     velocity: [f64; 3],
     mass: f64,
-}   
+} 
+
+const INTERACTIONS_COUNT: usize = BODIES_COUNT * (BODIES_COUNT - 1) / 2;
+const ROUNDED_INTERACTIONS_COUNT: usize = INTERACTIONS_COUNT + INTERACTIONS_COUNT % 2;
+
+
+#[derive(Copy,Clone)]
+#[repr(C)]
+ union Interactions {
+     scalars: [f64; ROUNDED_INTERACTIONS_COUNT],
+     vectors: [__m128d; ROUNDED_INTERACTIONS_COUNT / 2]
+ }
+
+ impl Interactions {
+     pub fn as_scalars(&mut self) -> &mut [f64; ROUNDED_INTERACTIONS_COUNT] {
+         unsafe {
+             &mut self.scalars
+         }
+     }
+
+     pub fn as_vectors(&mut self) -> &mut [__m128d; ROUNDED_INTERACTIONS_COUNT / 2] {
+         unsafe {
+             &mut self.vectors
+         }
+     }
+ }
 
 
 
@@ -121,35 +146,11 @@ unsafe fn output_Energy(bodies: &mut [body; BODIES_COUNT]){
     println!("{:.9}", energy);
 }
 
-unsafe fn advance (bodies: &mut [body; BODIES_COUNT]){
-   const INTERACTIONS_COUNT: usize = BODIES_COUNT * (BODIES_COUNT - 1) / 2;
-   const ROUNDED_INTERACTIONS_COUNT: usize = INTERACTIONS_COUNT + INTERACTIONS_COUNT % 2;
-
-   #[derive(Copy,Clone)]
-   #[repr(C)]
-    union Interactions {
-        scalars: [f64; ROUNDED_INTERACTIONS_COUNT],
-        vectors: [__m128d; ROUNDED_INTERACTIONS_COUNT / 2]
-    }
-
-    impl Interactions {
-        pub fn as_scalars(&mut self) -> &mut [f64; ROUNDED_INTERACTIONS_COUNT] {
-            unsafe {
-                &mut self.scalars
-            }
-        }
-
-        pub fn as_vectors(&mut self) -> &mut [__m128d; ROUNDED_INTERACTIONS_COUNT / 2] {
-            unsafe {
-                &mut self.vectors
-            }
-        }
-    }
-   
-
-    static mut position_Deltas: [Interactions; 3] = [Interactions{ scalars: [0.; ROUNDED_INTERACTIONS_COUNT] }; 3];
-    static mut magnitudes: Interactions = Interactions{ scalars: [0.; ROUNDED_INTERACTIONS_COUNT] };
-
+unsafe fn advance (
+    bodies: &mut [body; BODIES_COUNT],
+    position_Deltas: &mut [Interactions; 3],
+    magnitudes: &mut Interactions,
+){
     let mut k = 0;
     for i in 0..BODIES_COUNT-1 {
         for j in i+1..BODIES_COUNT-1 {
@@ -231,13 +232,20 @@ for m in 0..3 {
 }
 
 fn main() {
+    let mut position_Deltas: [Interactions; 3] = [Interactions{ scalars: [0.; ROUNDED_INTERACTIONS_COUNT] }; 3];
+    let mut magnitudes: Interactions = Interactions{ scalars: [0.; ROUNDED_INTERACTIONS_COUNT] };
+
     unsafe {
         offset_Momentum(&mut solar_Bodies);
         output_Energy(&mut solar_Bodies);
 
         let c = std::env::args().nth(1).unwrap().parse().unwrap();
         for _ in 0..c {
-            advance(&mut solar_Bodies)
+            advance(
+                &mut solar_Bodies,
+                &mut position_Deltas,
+                &mut magnitudes,
+            )
         }
         output_Energy(&mut solar_Bodies);
     }
