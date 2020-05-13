@@ -146,6 +146,7 @@ unsafe fn output_Energy(bodies: &mut [body; BODIES_COUNT]){
     println!("{:.9}", energy);
 }
 
+#[cfg(target_feature = "sse2")]
 unsafe fn advance (
     bodies: &mut [body; BODIES_COUNT],
     position_Deltas: &mut [Interactions; 3],
